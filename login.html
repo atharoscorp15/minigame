@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Logic Flow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <link href="style.css" rel="stylesheet">
+</head>
+<body class="bg-[#020617] min-h-screen flex flex-col">
+
+  <!-- NAVBAR -->
+  <nav class="bg-slate-900 text-white p-4 shadow-md flex justify-between items-center relative">
+    <div class="flex items-center">
+      <div class="font-bold text-xl tracking-wider">
+        <span class="text-blue-500">&lt;</span> LogicFlow <span class="text-blue-500">/&gt;</span>
+      </div>
+      <a href="admin.html" class="ml-12 text-[10px] text-[#1e293b] hover:text-blue-900 transition-colors duration-1000 font-mono tracking-widest" title="System Trace">v.1.0.4-stable</a>
+    </div>
+    <div class="flex items-center">
+      <a href="index.html" class="text-sm font-medium hover:text-blue-400 transition">Beranda</a>
+    </div>
+  </nav>
+
+  <!-- KONTEN LOGIN -->
+  <div class="flex-grow flex items-center justify-center p-6">
+    <div class="w-full max-w-lg bg-white p-12 rounded-[50px] shadow-2xl relative overflow-hidden">
+      <!-- Dekorasi -->
+      <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16"></div>
+      <div class="absolute bottom-0 left-0 w-24 h-24 bg-slate-50 rounded-full -ml-12 -mb-12"></div>
+
+      <div class="text-center mb-12 relative">
+        <div class="w-20 h-20 bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl rotate-6">
+          <span class="text-white text-3xl font-black italic">LF</span>
+        </div>
+        <h1 class="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">Arena Logic</h1>
+        <p class="text-slate-400 font-bold text-[10px] uppercase tracking-[0.3em] mt-3">Platform Microteaching 2026</p>
+      </div>
+
+      <div class="space-y-8 relative">
+        <div>
+          <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-4">Nama Peserta / Tim</label>
+          <input type="text" id="nama" placeholder="Ketik namamu..." autocomplete="off" class="w-full p-6 bg-slate-50 border-2 border-transparent focus:border-blue-600 focus:bg-white rounded-[30px] outline-none font-bold">
+        </div>
+
+        <div>
+          <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest text-center block">Tentukan Nomor Kelompok</label>
+          <div class="bg-slate-50/50 p-2 rounded-[35px] border border-slate-100">
+            <div class="grid grid-cols-2 gap-4 w-full max-w-xs mx-auto">
+              <button data-group="1" class="group-btn p-4 rounded-xl border-2 font-bold transition border-slate-200 bg-white text-slate-600 hover:border-blue-300">Kelompok 1</button>
+              <button data-group="2" class="group-btn p-4 rounded-xl border-2 font-bold transition border-slate-200 bg-white text-slate-600 hover:border-blue-300">Kelompok 2</button>
+              <button data-group="3" class="group-btn p-4 rounded-xl border-2 font-bold transition border-slate-200 bg-white text-slate-600 hover:border-blue-300">Kelompok 3</button>
+              <button data-group="4" class="group-btn p-4 rounded-xl border-2 font-bold transition border-slate-200 bg-white text-slate-600 hover:border-blue-300">Kelompok 4</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="errorMsg" class="hidden bg-red-50 p-5 rounded-[25px] border-l-[6px] border-red-500"></div>
+
+        <button id="loginBtn" class="w-full py-6 bg-slate-900 hover:bg-blue-600 text-white rounded-[35px] font-black text-xl shadow-2xl transition">MASUK KE GAME</button>
+      </div>
+
+      <div class="mt-14 text-center">
+        <p class="text-slate-300 text-[9px] font-black uppercase tracking-[0.4em]">Developed by Dahril Falah • PTI-A 2024</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ======================== CEK SUPABASE CLIENT ========================
+    if (typeof supabase === 'undefined') {
+      alert("Error: Supabase tidak terdefinisi. Periksa config.js dan koneksi internet.");
+      throw new Error("Supabase client not loaded");
+    }
+    console.log("Supabase client ready:", supabase);
+
+    // ======================== VARIABLES ========================
+    let selectedGroup = null;
+    const namaInput = document.getElementById('nama');
+    const errorDiv = document.getElementById('errorMsg');
+    const loginBtn = document.getElementById('loginBtn');
+
+    // ======================== EVENT GROUP BUTTONS ========================
+    document.querySelectorAll('.group-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedGroup = parseInt(btn.dataset.group);
+        document.querySelectorAll('.group-btn').forEach(b => {
+          b.classList.remove('border-blue-600', 'bg-blue-100', 'text-blue-800', 'scale-105', 'shadow-md');
+          b.classList.add('border-slate-200', 'bg-white', 'text-slate-600');
+        });
+        btn.classList.add('border-blue-600', 'bg-blue-100', 'text-blue-800', 'scale-105', 'shadow-md');
+        btn.classList.remove('border-slate-200', 'bg-white', 'text-slate-600');
+      });
+    });
+
+    // ======================== FUNGSI SHOW ERROR ========================
+    function showError(msg) {
+      errorDiv.innerText = `⚠️ ${msg}`;
+      errorDiv.classList.remove('hidden');
+      setTimeout(() => errorDiv.classList.add('hidden'), 5000);
+    }
+
+    // ======================== LOGIN HANDLER ========================
+    loginBtn.addEventListener('click', async () => {
+      const nama = namaInput.value.trim();
+      if (!nama || nama.length < 3) {
+        showError('Nama lengkap minimal 3 karakter!');
+        return;
+      }
+      if (!selectedGroup) {
+        showError('Silakan pilih nomor kelompokmu!');
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.innerText = 'MENGUNCI SESI...';
+
+      try {
+        // 1. Cek apakah kelompok sudah dipakai orang lain
+        const { data: profileCheck, error: checkError } = await supabase
+          .from('profiles')
+          .select('nama')
+          .eq('kelompok', selectedGroup)
+          .maybeSingle();
+
+        if (checkError) {
+          console.warn("Error saat cek kelompok:", checkError);
+          // Lanjutkan saja, mungkin tabel belum ada? nanti akan ketahuan di signUp
+        }
+
+        if (profileCheck && profileCheck.nama.toLowerCase() !== nama.toLowerCase()) {
+          showError(`Kelompok ${selectedGroup} sudah ditempati oleh tim "${profileCheck.nama.toUpperCase()}"`);
+          loginBtn.disabled = false;
+          loginBtn.innerText = 'MASUK KE GAME';
+          return;
+        }
+
+        // 2. Buat email & password unik
+        const fakeEmail = `klp_${selectedGroup}_${nama.replace(/\s/g, '').toLowerCase()}@logicflow.app`;
+        const fakePassword = `secure_pass_2026_${selectedGroup}`;
+        console.log("Mencoba login dengan:", fakeEmail);
+
+        // 3. Coba sign in
+        let { error: signInError } = await supabase.auth.signInWithPassword({
+          email: fakeEmail,
+          password: fakePassword
+        });
+
+        // 4. Jika gagal (user belum ada), daftarkan
+        if (signInError) {
+          console.log("User belum ada, melakukan sign up...");
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: fakeEmail,
+            password: fakePassword
+          });
+          if (signUpError) throw signUpError;
+          if (signUpData.user) {
+            // Insert profile
+            const { error: insertError } = await supabase.from('profiles').insert([
+              { id: signUpData.user.id, nama: nama, kelompok: selectedGroup }
+            ]);
+            if (insertError) throw insertError;
+            console.log("Sign up dan insert profile sukses");
+          }
+        } else {
+          console.log("Sign in sukses");
+        }
+
+        // 5. Redirect ke game
+        window.location.href = 'game.html';
+      } catch (err) {
+        console.error("Login error:", err);
+        let pesan = err.message || "Terjadi kesalahan. Periksa koneksi atau konfigurasi Supabase.";
+        if (pesan.includes("duplicate key")) pesan = "Kelompok sudah terdaftar dengan nama lain.";
+        if (pesan.includes("JWT")) pesan = "Masalah autentikasi. Coba refresh halaman.";
+        showError(pesan);
+        loginBtn.disabled = false;
+        loginBtn.innerText = 'MASUK KE GAME';
+      }
+    });
+  </script>
+</body>
+</html>

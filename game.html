@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game - Logic Flow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+  <script src="config.js"></script>
+  <style>
+    .sortable-drag { opacity: 0.4; background: #1e293b; }
+    .sortable-ghost { opacity: 0.3; background: #334155; }
+    .debug-console { font-size: 10px; color: #fbbf24; background: #0f172a; padding: 4px 8px; border-radius: 8px; margin-top: 10px; }
+  </style>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex flex-col">
+
+  <!-- NAVBAR -->
+  <nav class="bg-slate-900 text-white p-4 shadow-md flex justify-between items-center relative">
+    <div class="flex items-center">
+      <div class="font-bold text-xl tracking-wider">
+        <span class="text-blue-500">&lt;</span> LogicFlow <span class="text-blue-500">/&gt;</span>
+      </div>
+      <a href="admin.html" class="ml-12 text-[10px] text-[#1e293b] hover:text-blue-900 transition-colors duration-1000 font-mono tracking-widest" title="System Trace">v.1.0.4-stable</a>
+    </div>
+    <div class="flex items-center">
+      <a href="index.html" class="text-sm font-medium hover:text-blue-400 transition">Beranda</a>
+    </div>
+  </nav>
+
+  <!-- KONTEN GAME -->
+  <div class="flex-grow max-w-2xl mx-auto mt-6 p-6 pb-32 w-full">
+    
+    <!-- Header Game -->
+    <div class="flex justify-between items-center mb-8 bg-slate-900/50 p-6 rounded-[40px] border border-white/5 backdrop-blur-xl">
+      <div class="flex gap-4 items-center">
+        <div class="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center font-black" id="rondeBadge">1</div>
+        <div>
+          <p class="font-black text-lg italic tracking-tighter" id="profileKelompok">KELOMPOK ?</p>
+          <p class="text-[10px] text-slate-500 font-bold uppercase" id="profileNama">Memuat...</p>
+        </div>
+      </div>
+      <div class="flex gap-2" id="rondeDots">
+        <div class="h-2 w-8 rounded-full bg-blue-500 shadow"></div>
+        <div class="h-2 w-8 rounded-full bg-slate-800"></div>
+        <div class="h-2 w-8 rounded-full bg-slate-800"></div>
+      </div>
+    </div>
+
+    <!-- Judul Ronde -->
+    <div class="mb-8 text-center" id="rondeTitle">
+      <h1 class="text-4xl font-black mb-2 tracking-tighter italic uppercase">Memuat Soal...</h1>
+      <p class="text-slate-500 font-medium italic">Silakan tunggu</p>
+    </div>
+
+    <!-- Area Sortable Cards -->
+    <div class="bg-slate-900/80 p-6 rounded-[40px] border border-white/5 min-h-[300px]">
+      <div id="sortableList" class="space-y-4">
+        <div class="text-center text-slate-500 py-10">Memuat kartu soal...</div>
+      </div>
+    </div>
+
+    <!-- Tombol Navigasi -->
+    <div class="fixed bottom-10 left-0 right-0 px-6 max-w-2xl mx-auto flex gap-6">
+      <button id="prevBtn" class="flex-1 py-5 bg-slate-800 rounded-3xl font-black text-slate-400 hover:text-white transition disabled:opacity-50" disabled>KEMBALI</button>
+      <button id="nextBtn" class="flex-[2] py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[30px] font-black text-xl shadow-2xl">SIMPAN & LANJUT</button>
+    </div>
+  </div>
+
+  <script>
+    // ======================== DATA SOAL ========================
+    const soalData = [
+      {
+        judul: "Filter Sembako",
+        inst: "Bantu Pak RT: Penghasilan < 1.5jt DAN Anak > 2",
+        items: [
+          { id: "1", c: "for warga in daftar_warga:" },
+          { id: "2", c: "    if penghasilan < 1500000 and anak > 2:" },
+          { id: "3", c: '        print("Layak Terima")' },
+          { id: "4", c: "    else:" },
+          { id: "5", c: '        print("Belum Layak")' }
+        ]
+      },
+      {
+        judul: "Sistem Diskon",
+        inst: "Diskon 10% jika belanja > 500rb",
+        items: [
+          { id: "a", c: "total = int(input())" },
+          { id: "b", c: "if total > 500000:" },
+          { id: "c", c: "    diskon = total * 0.1" },
+          { id: "d", c: "    bayar = total - diskon" },
+          { id: "e", c: "else:" },
+          { id: "f", c: "    bayar = total" }
+        ]
+      },
+      {
+        judul: "Login Berlapis",
+        inst: "Nested IF: Cek User 'admin' & Pass '1234'",
+        items: [
+          { id: "x", c: 'if user == "admin":' },
+          { id: "y", c: '    if pass == "1234":' },
+          { id: "z", c: '        print("Ok")' },
+          { id: "w", c: "    else:" },
+          { id: "v", c: '        print("No")' },
+          { id: "m", c: "else:" },
+          { id: "n", c: '    print("Null")' }
+        ]
+      }
+    ];
+
+    // ======================== GLOBAL VARIABLES ========================
+    let currentRonde = 0;
+    let profile = null;
+    let sortable = null;
+    let currentItems = [];
+    let isSaving = false;
+
+    // ======================== HELPER FUNCTIONS ========================
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      });
+    }
+
+    // Render kartu ke dalam sortableList
+    function renderItems(items) {
+      const container = document.getElementById('sortableList');
+      if (!container) {
+        console.error("Element #sortableList tidak ditemukan!");
+        return;
+      }
+      container.innerHTML = '';
+      if (!items || items.length === 0) {
+        container.innerHTML = '<div class="text-center text-slate-500 py-10">Tidak ada kartu untuk ronde ini.</div>';
+        return;
+      }
+      items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'bg-slate-950 p-5 rounded-2xl border border-slate-800 cursor-grab active:cursor-grabbing hover:border-blue-500/50 transition-all group';
+        div.setAttribute('data-id', item.id);
+        div.innerHTML = `
+          <div class="flex gap-4 font-mono text-sm sm:text-base text-emerald-400">
+            <span class="text-slate-600 group-hover:text-blue-400 font-bold">☰</span>
+            ${escapeHtml(item.c)}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+      // Inisialisasi Sortable
+      if (sortable) sortable.destroy();
+      sortable = new Sortable(container, {
+        animation: 150,
+        handle: '.cursor-grab',
+        ghostClass: 'sortable-ghost',
+        dragClass: 'sortable-drag'
+      });
+      console.log("Render items selesai, jumlah kartu:", items.length);
+    }
+
+    // Simpan jawaban ronde saat ini ke Supabase
+    async function saveCurrentRonde() {
+      if (!profile) {
+        console.warn("Profile belum siap, tidak bisa save");
+        return;
+      }
+      if (isSaving) {
+        console.log("Sedang menyimpan, skip");
+        return;
+      }
+      isSaving = true;
+      const rondeNum = currentRonde + 1;
+      // Ambil urutan dari Sortable
+      let itemsOrder = [];
+      if (sortable) {
+        itemsOrder = sortable.toArray();
+      } else {
+        // fallback: ambil dari currentItems berdasarkan urutan DOM
+        const container = document.getElementById('sortableList');
+        const children = container.children;
+        for (let i = 0; i < children.length; i++) {
+          const id = children[i].getAttribute('data-id');
+          if (id) itemsOrder.push(id);
+        }
+      }
+      const orderedItems = [];
+      for (let id of itemsOrder) {
+        const found = currentItems.find(i => i.id === id);
+        if (found) orderedItems.push(found);
+      }
+      const jawabanStr = orderedItems.map(i => i.c).join('\n');
+      console.log(`Menyimpan ronde ${rondeNum} untuk kelompok ${profile.kelompok}:`, jawabanStr);
+
+      try {
+        const { data: existing } = await supabase
+          .from('jawaban')
+          .select('id')
+          .eq('user_id', profile.id)
+          .eq('ronde', rondeNum)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from('jawaban')
+            .update({ jawaban: jawabanStr })
+            .eq('id', existing.id);
+          console.log("Update jawaban sukses");
+        } else {
+          await supabase
+            .from('jawaban')
+            .insert({
+              user_id: profile.id,
+              kelompok: profile.kelompok,
+              ronde: rondeNum,
+              jawaban: jawabanStr
+            });
+          console.log("Insert jawaban sukses");
+        }
+      } catch (err) {
+        console.error("Gagal menyimpan:", err);
+      } finally {
+        isSaving = false;
+      }
+    }
+
+    // Pindah ke ronde tertentu
+    async function goToRonde(index) {
+      if (isSaving) return;
+      if (index < 0 || index >= soalData.length) return;
+      
+      // Simpan ronde sebelumnya
+      await saveCurrentRonde();
+      
+      currentRonde = index;
+      let newItems = [...soalData[currentRonde].items];
+      newItems = shuffleArray(newItems);
+      currentItems = newItems;
+      renderItems(currentItems);
+      
+      // Update UI Header
+      document.getElementById('rondeBadge').innerText = currentRonde + 1;
+      document.getElementById('rondeTitle').innerHTML = `
+        <h1 class="text-4xl font-black mb-2 tracking-tighter italic uppercase">${soalData[currentRonde].judul}</h1>
+        <p class="text-slate-500 font-medium italic">"${soalData[currentRonde].inst}"</p>
+      `;
+      // Update dots
+      const dots = document.querySelectorAll('#rondeDots > div');
+      dots.forEach((dot, i) => {
+        if (i <= currentRonde) {
+          dot.classList.add('bg-blue-500', 'shadow');
+          dot.classList.remove('bg-slate-800');
+        } else {
+          dot.classList.remove('bg-blue-500', 'shadow');
+          dot.classList.add('bg-slate-800');
+        }
+      });
+      // Tombol prev
+      document.getElementById('prevBtn').disabled = (currentRonde === 0);
+      // Tombol next text
+      const nextBtn = document.getElementById('nextBtn');
+      nextBtn.innerText = (currentRonde === 2) ? 'KIRIM SEKARANG' : 'SIMPAN & LANJUT';
+      console.log(`Pindah ke ronde ${currentRonde+1}`);
+    }
+
+    // Load profil user dari Supabase
+    async function loadProfile() {
+      try {
+        // Cek apakah supabase global sudah ada
+        if (typeof supabase === 'undefined') {
+          console.error("Supabase tidak terdefinisi! Periksa config.js");
+          document.getElementById('profileNama').innerText = "Error: Supabase";
+          return false;
+        }
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          console.error("User tidak login:", userError);
+          document.getElementById('profileNama').innerText = "Silakan login ulang";
+          setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+          return false;
+        }
+        console.log("User login:", user.email);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        if (error || !data) {
+          console.error("Profile tidak ditemukan:", error);
+          document.getElementById('profileNama').innerText = "Profil tidak ada";
+          return false;
+        }
+        profile = data;
+        document.getElementById('profileKelompok').innerText = `KELOMPOK ${profile.kelompok}`;
+        document.getElementById('profileNama').innerText = profile.nama;
+        console.log("Profile loaded:", profile);
+        return true;
+      } catch (err) {
+        console.error("Load profile error:", err);
+        document.getElementById('profileNama').innerText = "Error koneksi";
+        return false;
+      }
+    }
+
+    // ======================== EVENT LISTENERS ========================
+    document.getElementById('nextBtn').addEventListener('click', async () => {
+      if (isSaving) return;
+      await saveCurrentRonde();
+      if (currentRonde < 2) {
+        goToRonde(currentRonde + 1);
+      } else {
+        if (confirm('Data akan dikirim ke guru. Tidak ada jalan kembali setelah ini! Lanjutkan?')) {
+          window.location.href = 'lobby.html';
+        }
+      }
+    });
+
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      if (currentRonde > 0 && !isSaving) goToRonde(currentRonde - 1);
+    });
+
+    // ======================== START GAME ========================
+    (async function init() {
+      const loaded = await loadProfile();
+      if (loaded && profile) {
+        goToRonde(0);
+      } else {
+        // Tampilkan pesan error di area kartu
+        document.getElementById('sortableList').innerHTML = `
+          <div class="text-center text-red-400 py-10">
+            ⚠️ Gagal memuat data pengguna. <br>
+            Pastikan Anda sudah login dan koneksi ke Supabase berhasil. <br>
+            <a href="login.html" class="underline text-blue-400">Klik di sini untuk login</a>
+          </div>
+        `;
+      }
+    })();
+  </script>
+</body>
+</html>

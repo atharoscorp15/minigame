@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tunggu - Logic Flow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="style.css" rel="stylesheet">
+</head>
+<body class="bg-slate-900 min-h-screen flex flex-col">
+
+  <!-- NAVBAR -->
+  <nav class="bg-slate-900 text-white p-4 shadow-md flex justify-between items-center relative">
+    <div class="flex items-center">
+      <div class="font-bold text-xl tracking-wider">
+        <span class="text-blue-500">&lt;</span> LogicFlow <span class="text-blue-500">/&gt;</span>
+      </div>
+      <a href="admin.html" class="ml-12 text-[10px] text-[#1e293b] hover:text-blue-900 transition-colors duration-1000 font-mono tracking-widest" title="System Trace">v.1.0.4-stable</a>
+    </div>
+    <div class="flex items-center">
+      <a href="index.html" class="text-sm font-medium hover:text-blue-400 transition">Beranda</a>
+    </div>
+  </nav>
+
+  <!-- KONTEN LOBBY -->
+  <div class="flex-grow flex flex-col items-center justify-center p-6 text-white overflow-hidden relative">
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500 rounded-full blur-[100px] animate-pulse"></div>
+    </div>
+    <div class="relative z-10 text-center max-w-md">
+      <div class="text-8xl mb-8 animate-bounce">🛰️</div>
+      <h1 class="text-4xl font-black mb-4 tracking-tighter">DATA TERKIRIM!</h1>
+      <p class="text-slate-400 text-lg mb-10">Kelompokmu telah menyelesaikan tantangan. Sekarang, harap tenang dan tunggu pengumuman dari <span class="text-blue-400 font-bold">Admin/Guru</span> di depan kelas.</p>
+      <div class="flex flex-col items-center gap-4">
+        <div class="flex gap-2">
+          <div class="w-3 h-3 bg-blue-500 rounded-full animate-ping" style="animation-delay:0s"></div>
+          <div class="w-3 h-3 bg-blue-500 rounded-full animate-ping" style="animation-delay:0.2s"></div>
+          <div class="w-3 h-3 bg-blue-500 rounded-full animate-ping" style="animation-delay:0.4s"></div>
+        </div>
+        <span class="text-xs text-slate-500 font-mono tracking-[0.3em] uppercase">Menunggu Sesi Reveal...</span>
+      </div>
+    </div>
+  </div>
+
+  <footer class="absolute bottom-8 left-0 right-0 text-center text-slate-600 text-[10px] font-mono">LOGIC FLOW SYSTEM V.1.04 // STATUS: WAIT_FOR_ADMIN_COMMAND</footer>
+</body>
+</html>

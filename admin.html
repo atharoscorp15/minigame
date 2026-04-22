@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Logic Flow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    body { background: #020617; }
+    .animate-pulse-slow { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  </style>
+</head>
+<body class="min-h-screen text-white p-4 font-sans">
+<!-- NAVBAR -->
+  <nav class="bg-slate-900 text-white p-4 shadow-md flex justify-between items-center relative">
+    <div class="flex items-center">
+      <div class="font-bold text-xl tracking-wider">
+        <span class="text-blue-500">&lt;</span> LogicFlow <span class="text-blue-500">/&gt;</span>
+      </div>
+      <a href="admin.html" class="ml-12 text-[10px] text-[#1e293b] hover:text-blue-900 transition-colors duration-1000 font-mono tracking-widest" title="System Trace">v.1.0.4-stable</a>
+    </div>
+    <div class="flex items-center">
+      <a href="index.html" class="text-sm font-medium hover:text-blue-400 transition">Beranda</a>
+    </div>
+  </nav>
+  
+<div class="max-w-5xl mx-auto">
+  <!-- Header -->
+  <div class="flex justify-between items-center bg-slate-900/80 backdrop-blur-md p-4 rounded-[25px] mb-6 border border-slate-800">
+    <div class="flex items-center gap-4">
+      <div class="bg-blue-600 p-2 rounded-xl font-black italic text-xs">ADMIN</div>
+      <div class="flex gap-1 bg-black/40 p-1 rounded-xl" id="rondeTabs">
+        <button data-ronde="1" class="ronde-tab px-4 py-1.5 rounded-lg text-[10px] font-black transition bg-blue-600 text-white shadow-lg">RONDE 1</button>
+        <button data-ronde="2" class="ronde-tab px-4 py-1.5 rounded-lg text-[10px] font-black transition text-slate-500 hover:text-white">RONDE 2</button>
+        <button data-ronde="3" class="ronde-tab px-4 py-1.5 rounded-lg text-[10px] font-black transition text-slate-500 hover:text-white">RONDE 3</button>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button id="revealBtn" class="px-6 py-2 rounded-xl font-black text-[10px] uppercase italic bg-yellow-500 text-black shadow-lg shadow-yellow-500/20">Reveal Now</button>
+      <button id="winnerBtn" class="bg-white text-black px-6 py-2 rounded-xl font-black text-[10px] uppercase italic">🏆 Winner</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+    <!-- Kiri: Daftar kelompok -->
+    <div class="md:col-span-5 space-y-3" id="kelompokList"></div>
+
+    <!-- Kanan: Kunci jawaban -->
+    <div class="md:col-span-7 bg-slate-900 rounded-[35px] border border-slate-800 p-8 relative overflow-hidden">
+      <div class="absolute top-0 right-0 p-6 opacity-5 font-black text-6xl italic">CODE</div>
+      <h2 class="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-6">Kunci Jawaban Ronde <span id="kunciRonde">1</span></h2>
+      <div id="kunciContainer" class="bg-black/50 p-6 rounded-2xl border border-slate-700 font-mono text-sm text-emerald-400 leading-relaxed overflow-x-auto">
+        <!-- Kunci akan diisi -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Winner -->
+<div id="winnerModal" class="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-6 hidden">
+  <div class="bg-white text-black p-10 rounded-[50px] w-full max-w-md shadow-2xl text-center">
+    <h1 class="text-3xl font-black italic uppercase tracking-tighter mb-8">Papan Skor Akhir</h1>
+    <div id="scoreBoard" class="space-y-3"></div>
+    <button id="closeWinnerBtn" class="mt-8 text-slate-400 font-black text-[10px] uppercase underline">Tutup Dashboard</button>
+  </div>
+</div>
+
+<script>
+  let currentRonde = 1;
+  let isRevealed = false;
+  let jawabanSemua = [];
+  let refreshInterval;
+
+  const KUNCI = [
+    'for warga in daftar_warga:\n    if penghasilan < 1500000 and anak > 2:\n        print("Layak Terima")\n    else:\n        print("Belum Layak")',
+    'total = int(input())\nif total > 500000:\n    diskon = total * 0.1\n    bayar = total - diskon\nelse:\n    bayar = total',
+    'if user == "admin":\n    if pass == "1234":\n        print("Ok")\n    else:\n        print("No")\nelse:\n    print("Null")'
+  ];
+
+  async function fetchData() {
+    const { data } = await supabase
+      .from('jawaban')
+      .select('*, profiles(nama)')
+      .order('created_at', { ascending: true });
+    if (data) jawabanSemua = data;
+    renderKelompok();
+  }
+
+  function cekBenar(teks, ronde) {
+    if (!teks) return false;
+    return teks.replace(/\s/g, '') === KUNCI[ronde-1].replace(/\s/g, '');
+  }
+
+  function hitungSkor(kelompok) {
+    const dataKlp = jawabanSemua.filter(j => j.kelompok === kelompok);
+    let skor = 0;
+    dataKlp.forEach(j => {
+      if (cekBenar(j.jawaban, j.ronde)) skor += 100;
+    });
+    return skor;
+  }
+
+  function renderKelompok() {
+    const container = document.getElementById('kelompokList');
+    container.innerHTML = '';
+    for (let noKlp = 1; noKlp <= 4; noKlp++) {
+      const hasil = jawabanSemua.find(j => j.kelompok === noKlp && j.ronde === currentRonde);
+      const jawabanTeks = hasil?.jawaban || '';
+      const benar = hasil && cekBenar(jawabanTeks, currentRonde);
+      const borderClass = isRevealed ? (benar ? 'border-emerald-500 bg-emerald-500/10' : 'border-red-500 bg-red-500/10') : 'border-slate-800 bg-slate-900/50';
+      const statusText = isRevealed ? (benar ? 'CORRECT' : 'WRONG') : '';
+      const statusClass = isRevealed ? (benar ? 'bg-emerald-500' : 'bg-red-500') : '';
+
+      const card = document.createElement('div');
+      card.className = `p-4 rounded-3xl border-2 transition-all duration-500 ${borderClass}`;
+      card.innerHTML = `
+        <div class="flex justify-between items-start">
+          <div class="flex-1">
+            <div class="flex justify-between items-center">
+              <h3 class="font-black text-sm uppercase tracking-tighter">Kelompok ${noKlp}</h3>
+              ${isRevealed && hasil ? `<span class="text-[10px] font-black px-3 py-1 rounded-full ${statusClass}">${statusText}</span>` : ''}
+            </div>
+            <p class="text-[10px] text-slate-400 font-bold mt-1">${hasil?.profiles?.nama || 'Belum submit...'}</p>
+            ${hasil ? `
+              <div class="mt-3">
+                <p class="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Jawaban dikirim:</p>
+                <pre class="mt-1 p-2 rounded-xl text-xs font-mono whitespace-pre-wrap break-words border ${isRevealed ? (benar ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300' : 'bg-red-950/40 border-red-500/50 text-red-300') : 'bg-slate-800/50 border-slate-700 text-slate-300'}">${escapeHtml(jawabanTeks) || '<kosong>'}</pre>
+              </div>
+            ` : ''}
+          </div>
+          ${!hasil ? '<div class="w-2 h-2 bg-slate-700 rounded-full animate-pulse mt-2"></div>' : ''}
+        </div>
+      `;
+      container.appendChild(card);
+    }
+  }
+
+  function renderKunci() {
+    const container = document.getElementById('kunciContainer');
+    if (isRevealed) {
+      container.innerHTML = `<pre class="whitespace-pre-wrap">${KUNCI[currentRonde-1]}</pre>`;
+    } else {
+      container.innerHTML = `<div class="h-40 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-2xl"><p class="text-slate-600 font-black text-xs uppercase italic tracking-widest animate-pulse">Menunggu Reveal...</p></div>`;
+    }
+  }
+
+  function showWinner() {
+    const scores = [];
+    for (let i = 1; i <= 4; i++) {
+      scores.push({ kelompok: i, skor: hitungSkor(i) });
+    }
+    scores.sort((a,b) => b.skor - a.skor);
+    const board = document.getElementById('scoreBoard');
+    board.innerHTML = '';
+    scores.forEach((s, idx) => {
+      const div = document.createElement('div');
+      div.className = `flex justify-between items-center p-5 rounded-3xl ${idx === 0 ? 'bg-yellow-400 border-2 border-black' : 'bg-slate-100'}`;
+      div.innerHTML = `<span class="font-black text-sm uppercase">Klp ${s.kelompok} ${idx === 0 ? '👑' : ''}</span><span class="font-mono font-black">${s.skor} PTS</span>`;
+      board.appendChild(div);
+    });
+    document.getElementById('winnerModal').classList.remove('hidden');
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    });
+  }
+
+  // Event listeners
+  document.querySelectorAll('.ronde-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentRonde = parseInt(btn.dataset.ronde);
+      document.querySelectorAll('.ronde-tab').forEach(b => {
+        b.classList.remove('bg-blue-600', 'text-white', 'shadow-lg');
+        b.classList.add('text-slate-500');
+      });
+      btn.classList.add('bg-blue-600', 'text-white', 'shadow-lg');
+      btn.classList.remove('text-slate-500');
+      document.getElementById('kunciRonde').innerText = currentRonde;
+      renderKunci();
+      renderKelompok();
+    });
+  });
+
+  document.getElementById('revealBtn').addEventListener('click', () => {
+    isRevealed = !isRevealed;
+    const btn = document.getElementById('revealBtn');
+    btn.innerText = isRevealed ? 'Hide Result' : 'Reveal Now';
+    if (isRevealed) btn.classList.replace('bg-yellow-500', 'bg-red-500');
+    else btn.classList.replace('bg-red-500', 'bg-yellow-500');
+    renderKelompok();
+    renderKunci();
+  });
+
+  document.getElementById('winnerBtn').addEventListener('click', showWinner);
+  document.getElementById('closeWinnerBtn').addEventListener('click', () => {
+    document.getElementById('winnerModal').classList.add('hidden');
+  });
+
+  // Auto refresh setiap 3 detik
+  fetchData();
+  refreshInterval = setInterval(fetchData, 3000);
+  renderKunci();
+</script>
+</body>
+</html>
